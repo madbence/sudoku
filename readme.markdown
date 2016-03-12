@@ -3,6 +3,8 @@
 > parallel sudoku solver with `pthread`, uses backtracing as a last resort method,
   otherwise it tries to solve the puzzle like a human would do.
 
+![example](example.gif)
+
 ## compile
 
 ```sh
