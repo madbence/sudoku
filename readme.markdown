@@ -5,6 +5,8 @@
 
 ![example](example.gif)
 
+![example](workers.gif)
+
 ## compile
 
 ```sh
