@@ -4,7 +4,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifndef N
 const int N = 3;
+#endif
 const int M = N * N;
 pthread_mutex_t p = PTHREAD_MUTEX_INITIALIZER;
 struct Sudoku {
@@ -39,6 +41,11 @@ struct Sudoku {
       if (i != (by + oy) * M + bx + ox && v == data[(by + oy) * M + bx + ox]) return false;
     }
     return true;
+  }
+  void buf(char* b) {
+    for (int i = 0; i < M * M; i++) {
+      b[i] = data[i] + '0';
+    }
   }
   bool solved() {
     for (int i = 0; i < M * M; i++) {
@@ -140,10 +147,13 @@ struct Sudoku {
   }
 };
 
+const int MAX = 10;
 Sudoku stack[100000];
+Sudoku sol[MAX];
 int curr = -1;
 int waiting = 0;
 unsigned long long pushes = 0;
+int sols = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t wait = PTHREAD_MUTEX_INITIALIZER;
@@ -307,6 +317,16 @@ void* worker(void* data) {
     for (int i = 0; i < n; i++) {
       int k = 0;
       if (w[i].backtrack(&w_n[j], &k)) {
+        pthread_mutex_lock(&p);
+        if (sols < MAX) sol[sols++] = w[i];
+        else {
+          j = 0;
+          k = 0;
+          curr = -1;
+          pthread_mutex_unlock(&p);
+          break;
+        }
+        pthread_mutex_unlock(&p);
         if (SLOW) {
           printf("\033[16;1H");
           printf("\033[2KSolution:\n\n");
@@ -322,6 +342,7 @@ void* worker(void* data) {
 
 void solve(Sudoku s) {
   stack[curr = pushes = 0] = s;
+  sols = 0;
   pthread_mutex_lock(&d);
   pthread_mutex_lock(&mutex);
   pthread_cond_signal(&cond);
@@ -330,7 +351,29 @@ void solve(Sudoku s) {
   pthread_mutex_unlock(&d);
 }
 
-int main() {
+Sudoku generate() {
+  for (;;) {
+    Sudoku s("000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+    for (int i = 0; i < 5; i++) {
+      s.set(random() % (M * M), random() % M + 1, "fill");
+    }
+    solve(s);
+    if (!sols) continue;
+    Sudoku last = sol[0];
+    char buf1[M * M];
+    char buf2[M * M];
+    last.buf(buf1);
+    do {
+      for (int i = 0; i < M * M; i++) buf2[i] = buf1[i];
+      buf1[random() % (M * M)] = '0';
+      Sudoku next(buf1);
+      solve(next);
+    } while (sols == 1);
+    return Sudoku(buf2);
+  }
+}
+
+int main(int argc, const char** argv) {
   srand(time(NULL));
   int ids[T];
   setbuf(stdout, NULL);
@@ -340,14 +383,25 @@ int main() {
     int s = pthread_create(&threads[i], NULL, worker, (void*)&ids[i]);
   }
 
-  Sudoku s;
-  for (int i = 0; i < M * M; i++) {
-    s.data[i] = 0;
-    s.mask[i] = 0;
-    for (int j = 0; j < M; j++) {
-      s.mask[i] |= 1 << j;
+  if (argc == 2) {
+    if (SLOW) printf("\033[2J\033[1;1H");
+    Sudoku s(argv[1]);
+    s.print();
+    printf("\n");
+    solve(s);
+    for (int i = 0; i < sols; i++) {
+      sol[i].print();
+      printf("\n");
     }
+    return 0;
   }
+
+#ifdef GENERATE
+  if (SLOW) printf("\033[2J\033[1;1H");
+  Sudoku s = generate();
+  s.print();
+  return 0;
+#endif
 
   FILE* f = fopen("./puzzles.txt", "r");
   char buf[100] = {};
