@@ -23,7 +23,7 @@ $ g++ -pthread -std=c++11 -O0 -DT=4 -DW=1 -DSLOW=100 -o sudoku main.cpp
 ## run
 
 ```sh
-$ curl http://staffhome.ecm.uwa.edu.au/~00013890/sudoku17 > puzzles.txt
+$ curl 'http://staffhome.ecm.uwa.edu.au/~00013890/sudoku17' > puzzles.txt
 
 # solve the first 5000 puzzles
 $ ./sudoku
